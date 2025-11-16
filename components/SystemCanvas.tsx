@@ -1,23 +1,22 @@
 import React from 'react';
 import { GeneratorMetrics, GeneratorSettings, GeneratorStatus } from '../types';
-// FIX: Import GENERATOR_PARAMS to use in component.
 import { STATUS_STYLES, GENERATOR_PARAMS } from '../constants';
 import { MetricsDisplay } from './MetricsDisplay';
-import { ChevronUpIcon, DropletIcon } from './icons';
+import { ChevronUpIcon, DropletIcon, WifiOffIcon } from './icons';
 
 interface SystemCanvasProps {
   status: GeneratorStatus;
   metrics: GeneratorMetrics;
   settings: GeneratorSettings;
+  isCommsLossActive: boolean;
 }
 
-export const SystemCanvas: React.FC<SystemCanvasProps> = ({ status, metrics, settings }) => {
+export const SystemCanvas: React.FC<SystemCanvasProps> = ({ status, metrics, settings, isCommsLossActive }) => {
     const isRunning = status === GeneratorStatus.RUNNING || status === GeneratorStatus.ALERT;
     const isStarting = status === GeneratorStatus.STARTING;
-    const isStopped = status === GeneratorStatus.STOPPED;
 
     const rotationSpeed = isRunning ? 60 / (metrics.speed / 10) : (isStarting ? 5 : 30);
-    const animationClass = isRunning ? 'animate-spin-fast' : (isStarting ? 'animate-spin-slow' : '');
+    const animationClass = isRunning || isStarting ? 'animate-spin' : '';
 
     const intakeGateOpen = settings.intakeGatePosition > 0;
     const guideVanesOpen = settings.guideVanePosition > 0;
@@ -26,19 +25,54 @@ export const SystemCanvas: React.FC<SystemCanvasProps> = ({ status, metrics, set
     const statusColor = STATUS_STYLES[status].ring;
     const statusBgColor = STATUS_STYLES[status].bg;
 
+    // Dynamic water flow animation style
+    const waterFlowStyle = {
+      animationDuration: waterFlowing ? `${2 - (settings.waterHead / GENERATOR_PARAMS.waterHead.max) * 1.5}s` : '0s',
+      strokeWidth: `${2 + (settings.intakeGatePosition / 100) * 6}px`,
+      transition: 'stroke-width 0.5s ease-in-out',
+    };
+
   return (
     <div className="w-full h-full relative overflow-hidden">
       <svg width="100%" height="100%" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid meet">
         {/* Background elements */}
         <rect x="0" y="0" width="800" height="400" fill="#111827" />
+        
+        {/* Control System Elements */}
+        <g id="ControlSystem">
+            {/* Control Room */}
+            <rect x="10" y="10" width="130" height="60" rx="5" fill="#1F2937" stroke="#374151" strokeWidth="1"/>
+            <text x="75" y="25" textAnchor="middle" fill="#9CA3AF" fontSize="10" fontWeight="bold">Control Room</text>
+            
+            {/* SCADA HMI */}
+            <rect x="20" y="35" width="110" height="25" rx="2" fill="#111827" stroke="#374151" strokeWidth="1"/>
+            <text x="75" y="50" textAnchor="middle" fill="#60A5FA" fontSize="9">SCADA HMI</text>
+            {isCommsLossActive && <WifiOffIcon x="105" y="38" width="20" height="20" className="text-red-500 animate-pulse" />}
 
+            {/* PLC */}
+            <rect x="180" y="10" width="100" height="40" rx="3" fill="#1F2937" stroke="#374151" strokeWidth="1"/>
+            <text x="230" y="25" textAnchor="middle" fill="#9CA3AF" fontSize="10" fontWeight="bold">PLC</text>
+            <circle cx="190" cy="30" r="5" fill={statusBgColor} stroke={statusColor} strokeWidth="1.5" />
+            <text x="230" y="40" textAnchor="middle" fill="#6B7280" fontSize="8">Field Controller</text>
+
+            {/* RTU */}
+            <rect x="100" y="80" width="40" height="20" rx="2" fill="#1F2937" stroke="#374151" strokeWidth="1"/>
+            <text x="120" y="93" textAnchor="middle" fill="#9CA3AF" fontSize="8">RTU</text>
+
+            {/* Network Links */}
+            <line x1="140" y1="45" x2="180" y2="30" stroke="#06B6D4" strokeWidth="1.5" />
+            <text x="160" y="50" fill="#06B6D4" fontSize="7" transform="rotate(-20 160,50)">Control Network (IEC 61850)</text>
+            
+            <path d="M 200 50 L 200 60 L 120 60 L 120 80" stroke="#FBBF24" strokeWidth="1" strokeDasharray="3 2" fill="none"/>
+            <text x="160" y="70" fill="#FBBF24" fontSize="7">Field Bus (Modbus)</text>
+        </g>
+        
         {/* Reservoir & Dam */}
         <path d="M 0 100 L 150 100 L 170 350 L 0 350 Z" fill="url(#waterGradient)" />
         <path d="M 150 50 L 150 100 L 170 350 L 170 300 Z" fill="#4B5563" />
         <path d="M 150 50 L 170 300 L 170 350 L 150 100" stroke="#374151" strokeWidth="2" fill="none" />
         <text x="75" y="70" textAnchor="middle" fill="#9CA3AF" fontSize="14" fontWeight="bold">Reservoir</text>
         <text x="160" y="40" textAnchor="middle" fill="#9CA3AF" fontSize="14" fontWeight="bold">Dam</text>
-
         <defs>
             <linearGradient id="waterGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#3B82F6" />
@@ -50,14 +84,14 @@ export const SystemCanvas: React.FC<SystemCanvasProps> = ({ status, metrics, set
         <rect x="140" y="140" width="30" height="40" fill="#374151" />
         <rect x="150" y={145 + (15 * (100 - settings.intakeGatePosition) / 100)} width="20" height={15 * settings.intakeGatePosition / 100} fill="#60A5FA" />
         <text x="120" y="130" textAnchor="end" fill="#9CA3AF" fontSize="10">Intake Gate</text>
-        <path d="M 170 160 C 200 160, 220 280, 250 280 L 320 280" stroke="#6B7280" strokeWidth="12" fill="none" />
+        <path d="M 170 160 C 200 160, 220 280, 250 280 L 320 280" stroke="#6B7280" strokeWidth="16" fill="none" />
 
         {/* Water Flow Animation */}
-        <path d="M 170 160 C 200 160, 220 280, 250 280 L 320 280" 
+         <path d="M 170 160 C 200 160, 220 280, 250 280 L 320 280" 
             stroke="#3B82F6" 
-            strokeWidth="6" 
             fill="none" 
             className={waterFlowing ? "water-flow" : "water-flow-stopped"}
+            style={waterFlowStyle}
         />
         
         {/* Turbine */}
@@ -72,12 +106,12 @@ export const SystemCanvas: React.FC<SystemCanvasProps> = ({ status, metrics, set
         <text x="350" y="325" textAnchor="middle" fill="#9CA3AF" fontSize="12" fontWeight="bold">Turbine</text>
         
         {/* Draft Tube (Water Exit) */}
-        <path d="M 350 310 C 350 350, 400 350, 420 350 L 450 350" stroke="#6B7280" strokeWidth="12" fill="none" />
+        <path d="M 350 310 C 350 350, 400 350, 420 350 L 450 350" stroke="#6B7280" strokeWidth="16" fill="none" />
          <path d="M 350 310 C 350 350, 400 350, 420 350 L 450 350" 
             stroke="#3B82F6" 
-            strokeWidth="6" 
             fill="none" 
             className={waterFlowing ? "water-flow" : "water-flow-stopped"}
+            style={waterFlowStyle}
         />
 
         {/* Shaft */}
@@ -124,21 +158,14 @@ export const SystemCanvas: React.FC<SystemCanvasProps> = ({ status, metrics, set
       </svg>
       <MetricsDisplay metrics={metrics} status={status} />
        <style jsx="true">{`
-        @keyframes spin-slow {
+        @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-        @keyframes spin-fast {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+        .animate-spin {
+          animation: spin linear infinite;
         }
-        .animate-spin-slow {
-          animation: spin-slow linear infinite;
-        }
-        .animate-spin-fast {
-          animation: spin-fast linear infinite;
-        }
-      `}</style>
+       `}</style>
     </div>
   );
 };

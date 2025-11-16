@@ -20,6 +20,7 @@ const App: React.FC = () => {
             status={simulation.status}
             metrics={simulation.metrics}
             settings={simulation.settings}
+            isCommsLossActive={simulation.isCommsLossActive}
           />
         </div>
         
