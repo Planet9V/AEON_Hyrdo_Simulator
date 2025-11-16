@@ -9,12 +9,13 @@ interface DialProps {
   unit: string;
   onChange: (value: number) => void;
   disabled: boolean;
+  precision?: number;
 }
 
 const DIAL_RANGE_DEGREES = 270;
 const DIAL_START_DEGREE = 135; // Start at bottom-left
 
-export const Dial: React.FC<DialProps> = ({ label, value, min, max, step, unit, onChange, disabled }) => {
+export const Dial: React.FC<DialProps> = ({ label, value, min, max, step, unit, onChange, disabled, precision = 0 }) => {
   const dialRef = useRef<SVGSVGElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -24,70 +25,75 @@ export const Dial: React.FC<DialProps> = ({ label, value, min, max, step, unit, 
   }, [min, max]);
 
   const angleToValue = useCallback((angle: number) => {
-    // Normalize angle to 0-360 range
     const normalizedAngle = (angle + 360) % 360;
 
     let percentage = 0;
-    if (normalizedAngle >= DIAL_START_DEGREE && normalizedAngle <= DIAL_START_DEGREE + DIAL_RANGE_DEGREES) {
-        percentage = (normalizedAngle - DIAL_START_DEGREE) / DIAL_RANGE_DEGREES;
-    } else if (normalizedAngle < DIAL_START_DEGREE) {
-        // Handle wrap-around near the end of the range (e.g., 45 degrees)
-        if (normalizedAngle <= (DIAL_START_DEGREE + DIAL_RANGE_DEGREES) % 360) {
-            percentage = (normalizedAngle + (360 - DIAL_START_DEGREE)) / DIAL_RANGE_DEGREES;
+    const endAngle = DIAL_START_DEGREE + DIAL_RANGE_DEGREES;
+    const wrappedEndAngle = endAngle % 360;
+
+    if (DIAL_START_DEGREE < wrappedEndAngle) { // No wrap-around
+        if (normalizedAngle >= DIAL_START_DEGREE && normalizedAngle <= endAngle) {
+            percentage = (normalizedAngle - DIAL_START_DEGREE) / DIAL_RANGE_DEGREES;
+        } else if (normalizedAngle < DIAL_START_DEGREE) {
+            percentage = 0;
         } else {
-             percentage = 0;
+            percentage = 1;
         }
-    } else {
-        percentage = 1;
+    } else { // Wraps around 360 degrees
+        if (normalizedAngle >= DIAL_START_DEGREE || normalizedAngle <= wrappedEndAngle) {
+            if (normalizedAngle >= DIAL_START_DEGREE) {
+                percentage = (normalizedAngle - DIAL_START_DEGREE) / DIAL_RANGE_DEGREES;
+            } else { // normalizedAngle <= wrappedEndAngle
+                percentage = (normalizedAngle + 360 - DIAL_START_DEGREE) / DIAL_RANGE_DEGREES;
+            }
+        } else { // In the dead zone
+            percentage = normalizedAngle > (DIAL_START_DEGREE - 180) ? 0 : 1;
+        }
     }
-    
-    percentage = Math.max(0, Math.min(1, percentage));
-    
+
     const rawValue = min + percentage * (max - min);
+    const numDecimals = step.toString().split('.')[1]?.length || 0;
     const steppedValue = Math.round(rawValue / step) * step;
-    return Math.max(min, Math.min(max, parseFloat(steppedValue.toFixed(2))));
+    return Math.max(min, Math.min(max, parseFloat(steppedValue.toFixed(numDecimals))));
   }, [min, max, step]);
 
-  useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
-      if (!dialRef.current || disabled) return;
+
+  const handleInteraction = useCallback((e: MouseEvent | React.MouseEvent) => {
+      if (!dialRef.current) return;
       
       const rect = dialRef.current.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
-      const angle = Math.atan2(event.clientY - centerY, event.clientX - centerX) * (180 / Math.PI);
+      const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
 
       const newValue = angleToValue(angle);
       onChange(newValue);
+  }, [angleToValue, onChange]);
+
+  useEffect(() => {
+    const onMouseMove = (event: MouseEvent) => {
+      handleInteraction(event);
     };
 
-    const handleMouseUp = () => {
+    const onMouseUp = () => {
       setIsDragging(false);
     };
 
     if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp, { once: true });
     }
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [isDragging, disabled, angleToValue, onChange]);
+  }, [isDragging, handleInteraction]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (disabled) return;
     setIsDragging(true);
-    
-    if (dialRef.current) {
-        const rect = dialRef.current.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
-        const newValue = angleToValue(angle);
-        onChange(newValue);
-    }
+    handleInteraction(e);
   };
   
   const angle = valueToAngle(value);
@@ -149,7 +155,7 @@ export const Dial: React.FC<DialProps> = ({ label, value, min, max, step, unit, 
         <circle cx="50" cy="50" r="28" fill="#1F2937" stroke={!disabled ? "#4B5563" : "#374151"} strokeWidth="1" />
       </svg>
       <div className={`font-bold text-lg -mt-20 ${disabled ? 'text-gray-500' : 'text-cyan-300'}`}>
-        {value.toFixed(label.includes('Voltage') ? 1 : 0)}
+        {value.toFixed(precision)}
       </div>
       <div className={`text-xs text-gray-400 -mt-1`}>{unit}</div>
     </div>

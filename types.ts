@@ -23,6 +23,7 @@ export interface GeneratorMetrics {
   excitationCurrent: number;
   rocf: number; // Rate of Change of Frequency
   powerFactor: number;
+  flowRate: number;
 }
 
 export interface GeneratorSettings {

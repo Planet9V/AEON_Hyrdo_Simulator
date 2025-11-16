@@ -32,9 +32,6 @@ export const SystemCanvas: React.FC<SystemCanvasProps> = ({ status, metrics, set
       transition: 'stroke-width 0.5s ease-in-out',
     };
     
-    const flowRate = (settings.intakeGatePosition / 100) * (settings.guideVanePosition / 100) * (settings.waterHead / 10) * 50; // Estimated flow rate m³/s
-
-
   return (
     <div className="w-full h-full relative overflow-hidden">
       <svg width="100%" height="100%" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid meet">
@@ -172,8 +169,8 @@ export const SystemCanvas: React.FC<SystemCanvasProps> = ({ status, metrics, set
             <rect x="345" y="360" width="160" height="35" rx="5" fill="#1F2937" stroke="#374151" />
             <WindIcon x="350" y="365" width="25" height="25" className="text-blue-400" />
             <text x="380" y="375" fill="#9CA3AF" fontSize="10">Flow Rate</text>
-            <text x="380" y="388" fill="#E5E7EB" fontSize="12" fontWeight="bold">{flowRate.toFixed(1)} m³/s</text>
-            <ChevronUpIcon x="480" y="368" width="20" height="20" className="text-gray-400" style={{ transform: `rotate(${(flowRate / 500) * 180}deg)`, transformOrigin: 'center'}}/>
+            <text x="380" y="388" fill="#E5E7EB" fontSize="12" fontWeight="bold">{metrics.flowRate.toFixed(1)} m³/s</text>
+            <ChevronUpIcon x="480" y="368" width="20" height="20" className="text-gray-400" style={{ transform: `rotate(${(metrics.flowRate / 250) * 180}deg)`, transformOrigin: 'center'}}/>
         </g>
       </svg>
       <MetricsDisplay metrics={metrics} status={status} />

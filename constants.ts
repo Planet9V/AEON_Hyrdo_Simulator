@@ -11,10 +11,13 @@ export const GENERATOR_PARAMS = {
   gatePosition: { min: 0, max: 100, unit: '%'},
   vanePosition: { min: 0, max: 100, unit: '%'},
   poles: 24,
-  efficiency: 0.988,
+  efficiency: 0.92, // Adjusted for more dynamic calculations
   powerFactor: 0.9,
   waterDensity: 1000, // kg/m³
   gravity: 9.81, // m/s²
+  inertia: 5, // s (Generator inertia constant H)
+  gridLoadNominal: 400, // MW
+  flowRateConstant: 2.5, // Ad-hoc constant for flow rate formula
 };
 
 export const OPERATIONAL_LIMITS = {
@@ -38,6 +41,7 @@ export const INITIAL_METRICS: GeneratorMetrics = {
   excitationCurrent: 0,
   rocf: 0,
   powerFactor: 0.9,
+  flowRate: 0,
 };
 
 export const INITIAL_SETTINGS: GeneratorSettings = {
