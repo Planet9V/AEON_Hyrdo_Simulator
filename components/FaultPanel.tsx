@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { GeneratorStatus } from '../types';
 import { AlertTriangleIcon, RefreshCwIcon, WifiOffIcon, WindIcon } from './icons';
@@ -19,6 +20,7 @@ interface FaultPanelProps {
 export const FaultPanel: React.FC<FaultPanelProps> = ({ status, faults, actions }) => {
   const isRunning = status === GeneratorStatus.RUNNING || status === GeneratorStatus.ALERT;
   const isCommsLoss = status === GeneratorStatus.COMMS_LOSS;
+  const isAnyFaultActive = faults.isGridFaultActive || faults.isTrashRackClogged || isCommsLoss;
 
   return (
     <div className="flex flex-col h-full space-y-4">
@@ -62,7 +64,7 @@ export const FaultPanel: React.FC<FaultPanelProps> = ({ status, faults, actions 
         </button>
          <button
           onClick={actions.resetFaults}
-          disabled={faults.isGridFaultActive || faults.isTrashRackClogged || isCommsLoss}
+          disabled={!isAnyFaultActive}
           className="flex flex-col items-center justify-center space-y-1 h-24 px-4 py-2 bg-gray-500 text-white font-semibold rounded-md hover:bg-gray-400 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
         >
           <RefreshCwIcon className="w-8 h-8" />

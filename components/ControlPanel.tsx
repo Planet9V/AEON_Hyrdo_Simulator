@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { GeneratorStatus, GeneratorSettings } from '../types';
 import { GENERATOR_PARAMS } from '../constants';
@@ -52,7 +53,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 }) => {
   const isRunning = status === GeneratorStatus.RUNNING || status === GeneratorStatus.ALERT;
   const isStopped = status === GeneratorStatus.STOPPED;
-  const isBusy = !isRunning && !isStopped && status !== GeneratorStatus.COMMS_LOSS && status !== GeneratorStatus.GRID_UNSTABLE;
   const isDisabled = isCommsLossActive || !isRunning;
 
   return (
@@ -80,7 +80,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
           </button>
            <button
             onClick={() => onEmergencyStop()}
-            disabled={isStopped || isBusy }
+            disabled={status === GeneratorStatus.STOPPED || status === GeneratorStatus.EMERGENCY_STOP}
             className="flex items-center justify-center space-x-2 px-4 py-2 bg-red-700 text-white font-bold rounded-md hover:bg-red-600 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors animate-pulse disabled:animate-none"
           >
             <AlertTriangleIcon className="w-5 h-5" />
