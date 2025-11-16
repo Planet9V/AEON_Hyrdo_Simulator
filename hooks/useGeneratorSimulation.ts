@@ -197,7 +197,6 @@ export const useGeneratorSimulation = () => {
   useEffect(() => {
     const isSimRunning = status === GeneratorStatus.RUNNING || status === GeneratorStatus.ALERT || status === GeneratorStatus.COMMS_LOSS;
 
-    // Clear previous interval if status changes to something that isn't a running state
     if (!isSimRunning && intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -285,23 +284,16 @@ export const useGeneratorSimulation = () => {
       intervalRef.current = window.setInterval(tick, SIMULATION_TICK_RATE);
     } 
     
-    // This cleanup function only runs on unmount, not on re-renders
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      if (sequenceTimeoutRef.current) clearTimeout(sequenceTimeoutRef.current);
-      if (gridFaultDecayRef.current) clearTimeout(gridFaultDecayRef.current);
+      // ONLY clear the main simulation interval.
+      // Do NOT clear the sequenceTimeoutRef here, as this effect can re-run
+      // during a sequence and prematurely cancel it.
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
     };
-  }, [status]); // This effect now ONLY runs when the status changes.
+  }, [status, start, stop, emergencyStop, addLog, runSequence, calculateSynchronousSpeed, isGridFaultActive, isTrashRackClogged, settings]);
 
-
-  // A separate effect to handle the simulation logic that depends on settings etc.
-  // This is a common pattern to avoid the issues with setTimeout/setInterval in one large effect.
-  // Since the tick function is defined inside the main effect, we don't need another effect.
-  // The main issue was the large dependency array causing the main effect to re-run and clear timers.
-  // By reducing the dependency array to just `status`, we ensure the interval management logic
-  // only runs when the high-level state changes, preventing it from interfering with the
-  // setTimeout-based sequences. The tick function itself will still have access to the latest
-  // state (like settings) via closures.
 
   useEffect(() => {
     if (!isCommsLossActive) {

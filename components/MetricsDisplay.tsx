@@ -89,7 +89,7 @@ export const MetricsDisplay: React.FC<MetricDisplayProps> = ({ metrics, status }
       />
       <MetricCard 
         icon={<ExcitationIcon className="w-4 h-4" />}
-        label="Excitation"
+        label="Excitation Current"
         value={metrics.excitationCurrent.toFixed(1)}
         unit="A"
         className="top-[70%] left-[52%]"
