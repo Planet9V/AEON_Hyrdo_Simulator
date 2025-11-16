@@ -1,0 +1,5 @@
+{
+  "name": "Hydroelectric Generator Simulator",
+  "description": "A web-based simulator for a hydroelectric generator, providing a technical interface with visuals, a control panel, and direct simulation of power generation equipment based on real-world parameters.",
+  "requestFramePermissions": []
+}
