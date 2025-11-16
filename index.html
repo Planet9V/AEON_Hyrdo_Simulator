@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -16,9 +15,52 @@
   }
 }
 </script>
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #1f2937; /* bg-gray-800 */
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #4b5563; /* bg-gray-600 */
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #6b7280; /* bg-gray-500 */
+    }
+    
+    /* Water flow animation */
+    @keyframes flow {
+      0% {
+        stroke-dashoffset: 0;
+      }
+      100% {
+        stroke-dashoffset: -40;
+      }
+    }
+    .water-flow {
+      stroke-dasharray: 20 20;
+      animation: flow 2s linear infinite;
+    }
+
+    .water-flow-stopped {
+        stroke-dasharray: 0 40;
+    }
+
+     /* Console panel styles */
+    .console-panel {
+      background-color: rgba(31, 41, 55, 0.7); /* bg-gray-800 with opacity */
+      border: 1px solid #374151; /* border-gray-700 */
+      border-radius: 0.5rem;
+      padding: 1rem;
+      backdrop-filter: blur(5px);
+    }
+  </style>
 </head>
-  <body class="bg-gray-900 text-gray-200">
-    <div id="root"></div>
+  <body class="bg-gray-900 text-gray-200 h-screen overflow-hidden">
+    <div id="root" class="h-full"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

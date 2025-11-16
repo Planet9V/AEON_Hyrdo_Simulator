@@ -1,56 +1,33 @@
-
 import React from 'react';
-import { ControlPanel } from './components/ControlPanel';
-import { GeneratorVisual } from './components/GeneratorVisual';
-import { MetricsDisplay } from './components/MetricsDisplay';
-import { LogPanel } from './components/LogPanel';
 import { useGeneratorSimulation } from './hooks/useGeneratorSimulation';
 import { Header } from './components/Header';
 import { AlertBanner } from './components/AlertBanner';
+import { SystemCanvas } from './components/SystemCanvas';
+import { ControlConsole } from './components/ControlConsole';
 
 const App: React.FC = () => {
-  const {
-    status,
-    metrics,
-    logs,
-    settings,
-    start,
-    stop,
-    emergencyStop,
-    updateSetting,
-    acknowledgeAlert
-  } = useGeneratorSimulation();
+  const simulation = useGeneratorSimulation();
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-200 font-mono flex flex-col p-4 sm:p-6 lg:p-8 space-y-4">
-      <Header status={status} />
-      <AlertBanner status={status} onAcknowledge={acknowledgeAlert} />
+    <div className="min-h-screen bg-gray-900 text-gray-200 font-mono flex flex-col p-4 space-y-4 h-screen">
+      <Header status={simulation.status} />
+      <AlertBanner status={simulation.status} onAcknowledge={simulation.acknowledgeAlert} />
       
-      <main className="flex-grow grid grid-cols-1 lg:grid-cols-10 gap-4">
-        <div className="lg:col-span-3 xl:col-span-2 bg-gray-800/50 p-4 rounded-lg shadow-lg border border-gray-700">
-          <ControlPanel 
-            status={status}
-            settings={settings}
-            onStart={start}
-            onStop={stop}
-            onEmergencyStop={emergencyStop}
-            onSettingChange={updateSetting}
+      <main className="flex-grow flex flex-col gap-4 overflow-hidden">
+        {/* Top Part: System Visualization */}
+        <div className="flex-grow bg-gray-800/50 rounded-lg shadow-lg border border-gray-700 relative">
+          <SystemCanvas
+            status={simulation.status}
+            metrics={simulation.metrics}
+            settings={simulation.settings}
           />
         </div>
         
-        <div className="lg:col-span-7 xl:col-span-8 grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <div className="xl:col-span-1 bg-gray-800/50 p-4 rounded-lg shadow-lg flex items-center justify-center border border-gray-700">
-            <GeneratorVisual status={status} speed={metrics.speed} />
-          </div>
-          <div className="xl:col-span-2 bg-gray-800/50 p-4 rounded-lg shadow-lg border border-gray-700">
-            <MetricsDisplay metrics={metrics} />
-          </div>
+        {/* Bottom Part: Control Console */}
+        <div className="flex-shrink-0 h-[45%]">
+           <ControlConsole {...simulation} />
         </div>
       </main>
-
-      <footer className="h-48">
-        <LogPanel logs={logs} />
-      </footer>
     </div>
   );
 };

@@ -6,6 +6,8 @@ export enum GeneratorStatus {
   STOPPING = 'STOPPING',
   EMERGENCY_STOP = 'EMERGENCY_STOP',
   ALERT = 'ALERT',
+  GRID_UNSTABLE = 'GRID_UNSTABLE',
+  COMMS_LOSS = 'COMMS_LOSS',
 }
 
 export interface GeneratorMetrics {
@@ -19,10 +21,13 @@ export interface GeneratorMetrics {
   current: number;
   efficiency: number;
   excitationCurrent: number;
+  rocf: number; // Rate of Change of Frequency
 }
 
 export interface GeneratorSettings {
-  targetPower: number;
+  waterHead: number; // in meters
+  intakeGatePosition: number; // in %
+  guideVanePosition: number; // in %
   targetVoltage: number;
   targetFrequency: number;
 }

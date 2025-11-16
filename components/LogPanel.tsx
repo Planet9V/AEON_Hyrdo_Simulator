@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 
 interface LogPanelProps {
@@ -15,22 +14,19 @@ export const LogPanel: React.FC<LogPanelProps> = ({ logs }) => {
   }, [logs]);
 
   const getLogColor = (log: string) => {
-    if (log.includes('!!!')) return 'text-red-400';
-    if (log.includes('[ALERT]')) return 'text-red-400 font-bold';
+    if (log.includes('!!!') || log.includes('[ALERT]') || log.includes('GRID INSTABILITY')) return 'text-red-400 font-bold';
+    if (log.includes('SCADA')) return 'text-orange-400 font-bold';
     if (log.includes('RUNNING')) return 'text-green-400';
     if (log.includes('STOPPED')) return 'text-yellow-400';
-    if (log.includes('[SYSTEM]')) return 'text-cyan-400';
+    if (log.includes('[SYSTEM]') || log.includes('[SCENARIO]')) return 'text-cyan-400';
     return 'text-gray-300';
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-800/50 rounded-lg shadow-lg border border-gray-700 p-4">
-      <h2 className="text-lg font-bold text-gray-300 border-b-2 border-gray-700 pb-2 mb-2 flex-shrink-0">
-        System Log
-      </h2>
-      <div ref={logContainerRef} className="flex-grow overflow-y-auto pr-2">
+    <div className="h-full flex flex-col p-2">
+      <div ref={logContainerRef} className="flex-grow overflow-y-auto pr-2 h-full">
         {logs.map((log, index) => (
-          <p key={index} className={`text-xs sm:text-sm whitespace-pre-wrap ${getLogColor(log)}`}>
+          <p key={index} className="text-xs whitespace-pre-wrap leading-relaxed ${getLogColor(log)}">
             {log}
           </p>
         ))}
