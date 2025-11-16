@@ -177,7 +177,7 @@ export const SystemCanvas: React.FC<SystemCanvasProps> = ({ status, metrics, set
         </g>
       </svg>
       <MetricsDisplay metrics={metrics} status={status} />
-       <style jsx="true">{`
+       <style>{`
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }

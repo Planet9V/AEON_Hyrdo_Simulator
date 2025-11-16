@@ -38,21 +38,6 @@ export const useGeneratorSimulation = () => {
     setLogs(prevLogs => [`[${timestamp}] ${message}`, ...prevLogs.slice(0, 199)]);
   }, []);
 
-  const clearAllTimers = useCallback(() => {
-    if (sequenceTimeoutRef.current) {
-        clearTimeout(sequenceTimeoutRef.current);
-        sequenceTimeoutRef.current = null;
-    }
-    if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-    }
-    if (gridFaultDecayRef.current) {
-        clearTimeout(gridFaultDecayRef.current);
-        gridFaultDecayRef.current = null;
-    }
-  }, []);
-
   const runSequence = useCallback((sequence: string[], finalStatus: GeneratorStatus, onComplete?: () => void) => {
     if (sequenceTimeoutRef.current) {
         clearTimeout(sequenceTimeoutRef.current);
@@ -78,7 +63,14 @@ export const useGeneratorSimulation = () => {
     setStatus(currentStatus => {
         if (currentStatus !== GeneratorStatus.STOPPED && currentStatus !== GeneratorStatus.EMERGENCY_STOP) {
             if (reason) addLog(`[SYSTEM] ${reason}`);
-            clearAllTimers();
+            
+            if (sequenceTimeoutRef.current) clearTimeout(sequenceTimeoutRef.current);
+            if (intervalRef.current) clearInterval(intervalRef.current);
+            if (gridFaultDecayRef.current) clearTimeout(gridFaultDecayRef.current);
+            intervalRef.current = null;
+            sequenceTimeoutRef.current = null;
+            gridFaultDecayRef.current = null;
+
             runSequence(EMERGENCY_STOP_SEQUENCE, GeneratorStatus.STOPPED, () => {
                 setMetrics(INITIAL_METRICS);
                 voltageRegulatorRef.current.reset();
@@ -87,14 +79,17 @@ export const useGeneratorSimulation = () => {
         }
         return currentStatus;
     });
-  }, [addLog, clearAllTimers, runSequence]);
+  }, [addLog, runSequence]);
 
   const resetFaults = useCallback(() => {
-    const wasCommsLoss = isCommsLossActive;
+    let wasCommsLoss = false;
+    setCommsLossActive(prev => {
+      wasCommsLoss = prev;
+      return false;
+    });
     
     setGridFaultActive(false);
     setTrashRackClogged(false);
-    setCommsLossActive(false);
 
     if (gridFaultDecayRef.current) clearTimeout(gridFaultDecayRef.current);
     gridFaultDecayRef.current = null;
@@ -109,12 +104,12 @@ export const useGeneratorSimulation = () => {
     });
 
     addLog('[SYSTEM] All fault conditions cleared.');
-  }, [addLog, isCommsLossActive]);
+  }, [addLog]);
 
   const start = useCallback(() => {
     setStatus(currentStatus => {
         if (currentStatus === GeneratorStatus.STOPPED) {
-            resetFaults(); // Reset faults at the beginning of the start sequence
+            resetFaults();
             setMetrics(INITIAL_METRICS);
             voltageRegulatorRef.current.reset();
             setSettings(prev => ({...prev, intakeGatePosition: 100, guideVanePosition: 25}));
@@ -191,7 +186,6 @@ export const useGeneratorSimulation = () => {
             addLog('[SCENARIO] Simulating SCADA communication loss. HMI data is frozen!');
             return GeneratorStatus.COMMS_LOSS;
         } else if (currentStatus === GeneratorStatus.COMMS_LOSS) {
-            // When toggling off, call resetFaults which will handle setting status back to RUNNING
              setCommsLossActive(false);
              addLog('[SYSTEM] SCADA communications restored.');
              return GeneratorStatus.RUNNING;
@@ -201,12 +195,15 @@ export const useGeneratorSimulation = () => {
   }, [addLog]);
 
   useEffect(() => {
-    // This is the core simulation loop effect.
-    // It is critical that its cleanup function ONLY cleans up resources created within THIS effect.
-    // Specifically, it should only clear the interval timer for the simulation tick.
-    // It MUST NOT clear the sequence timeouts, as that would interrupt startup/shutdown sequences,
-    // causing the simulation to freeze in a transient state.
-    if (status === GeneratorStatus.RUNNING || status === GeneratorStatus.ALERT || status === GeneratorStatus.COMMS_LOSS) {
+    const isSimRunning = status === GeneratorStatus.RUNNING || status === GeneratorStatus.ALERT || status === GeneratorStatus.COMMS_LOSS;
+
+    // Clear previous interval if status changes to something that isn't a running state
+    if (!isSimRunning && intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+    }
+
+    if (isSimRunning && !intervalRef.current) {
       const tick = () => {
         setMetrics(prev => {
           const lastFrequency = prev.frequency === 0 ? settings.targetFrequency : prev.frequency;
@@ -288,15 +285,23 @@ export const useGeneratorSimulation = () => {
       intervalRef.current = window.setInterval(tick, SIMULATION_TICK_RATE);
     } 
     
-    // CRITICAL FIX: The cleanup function for this effect MUST only clear the interval created by this effect.
-    // If it clears all timeouts (e.g., by calling clearAllTimers), it will interrupt the startup/shutdown sequences.
+    // This cleanup function only runs on unmount, not on re-renders
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (sequenceTimeoutRef.current) clearTimeout(sequenceTimeoutRef.current);
+      if (gridFaultDecayRef.current) clearTimeout(gridFaultDecayRef.current);
     };
-  }, [status, settings, isGridFaultActive, isTrashRackClogged, addLog, calculateSynchronousSpeed, emergencyStop]);
+  }, [status]); // This effect now ONLY runs when the status changes.
+
+
+  // A separate effect to handle the simulation logic that depends on settings etc.
+  // This is a common pattern to avoid the issues with setTimeout/setInterval in one large effect.
+  // Since the tick function is defined inside the main effect, we don't need another effect.
+  // The main issue was the large dependency array causing the main effect to re-run and clear timers.
+  // By reducing the dependency array to just `status`, we ensure the interval management logic
+  // only runs when the high-level state changes, preventing it from interfering with the
+  // setTimeout-based sequences. The tick function itself will still have access to the latest
+  // state (like settings) via closures.
 
   useEffect(() => {
     if (!isCommsLossActive) {

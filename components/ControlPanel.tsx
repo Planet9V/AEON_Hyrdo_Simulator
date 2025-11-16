@@ -27,45 +27,48 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   const isStoppable = isRunning || status === GeneratorStatus.COMMS_LOSS;
   const isStopped = status === GeneratorStatus.STOPPED;
   const isEmergencyStoppable = status !== GeneratorStatus.STOPPED && status !== GeneratorStatus.EMERGENCY_STOP;
-  const isDisabled = isCommsLossActive || !isRunning;
+  const areDialsDisabled = isCommsLossActive || !isRunning;
 
   return (
-    <div className="flex flex-col h-full space-y-4 p-4">
-       <h3 className="text-lg font-bold text-center text-gray-300 border-b-2 border-gray-700 pb-2">Main Controls</h3>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-grow">
-        {/* Main Operations */}
-        <div className="flex flex-col space-y-4 justify-center items-center p-4 bg-gray-900/50 rounded-lg">
-           <h4 className="text-md font-semibold text-gray-400 text-center mb-2">Main Operations</h4>
-           <button
+    <div className="flex h-full p-4 space-x-6">
+      {/* Left Panel: Operations */}
+      <div className="flex flex-col w-1/3 items-center justify-around py-4 bg-gray-900/50 rounded-lg p-4 border border-gray-700">
+        <h3 className="text-lg font-bold uppercase text-gray-400 tracking-wider absolute top-8">System Operations</h3>
+        
+        <div className="flex flex-col space-y-6">
+          <button
             onClick={onStart}
             disabled={!isStopped || isCommsLossActive}
-            className="flex items-center justify-center space-x-2 w-full h-16 text-lg bg-green-700 text-white font-bold rounded-md hover:bg-green-600 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
+            className="w-48 h-20 font-bold uppercase rounded-md shadow-lg border-b-4 border-green-800 bg-green-600 text-white flex items-center justify-center space-x-3 transition-all duration-150 hover:bg-green-500 disabled:bg-gray-700 disabled:border-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed active:translate-y-0.5 active:border-b-2"
           >
-            <PlayIcon className="w-6 h-6" />
-            <span>START</span>
+            <PlayIcon className="w-8 h-8" />
+            <span className="text-xl">Start</span>
           </button>
+          
           <button
             onClick={onStop}
             disabled={!isStoppable}
-            className="flex items-center justify-center space-x-2 w-full h-16 text-lg bg-yellow-600 text-white font-bold rounded-md hover:bg-yellow-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
+            className="w-48 h-20 font-bold uppercase rounded-md shadow-lg border-b-4 border-yellow-700 bg-yellow-500 text-gray-900 flex items-center justify-center space-x-3 transition-all duration-150 hover:bg-yellow-400 disabled:bg-gray-700 disabled:border-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed active:translate-y-0.5 active:border-b-2"
           >
-            <StopIcon className="w-6 h-6" />
-            <span>STOP</span>
-          </button>
-           <button
-            onClick={() => onEmergencyStop()}
-            disabled={!isEmergencyStoppable}
-            className="flex items-center justify-center space-x-2 w-full h-16 text-lg bg-red-800 text-white font-bold rounded-md hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 animate-pulse disabled:animate-none"
-          >
-            <AlertTriangleIcon className="w-6 h-6" />
-            <span>E-STOP</span>
+            <StopIcon className="w-8 h-8" />
+            <span className="text-xl">Stop</span>
           </button>
         </div>
         
-        {/* Hydraulic Controls */}
-        <div className="flex flex-col justify-around items-center p-4 bg-gray-900/50 rounded-lg">
-          <h4 className="text-md font-semibold text-gray-400 text-center">Hydraulic Controls</h4>
-          <div className="flex justify-around w-full mt-4">
+        <button
+            onClick={() => onEmergencyStop()}
+            disabled={!isEmergencyStoppable}
+            className="w-32 h-32 rounded-full bg-red-700 text-white flex flex-col items-center justify-center shadow-xl border-4 border-red-900 hover:bg-red-600 disabled:bg-gray-700 disabled:border-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed transition-all duration-150 active:shadow-inner disabled:animate-none animate-pulse"
+          >
+            <AlertTriangleIcon className="w-8 h-8" />
+            <span className="font-bold text-xl uppercase mt-1">E-Stop</span>
+        </button>
+      </div>
+      
+      {/* Right Panel: Controls */}
+      <div className="flex-grow flex flex-col items-center justify-center bg-gray-900/50 rounded-lg p-4 border border-gray-700">
+          <h3 className="text-lg font-bold uppercase text-gray-400 tracking-wider mb-4">System Parameters</h3>
+          <div className="grid grid-cols-2 gap-x-16 gap-y-6">
             <Dial
               label="Water Head"
               value={settings.waterHead}
@@ -74,7 +77,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
               step={10}
               unit={GENERATOR_PARAMS.waterHead.unit}
               onChange={(value) => onSettingChange('waterHead', value)}
-              disabled={isDisabled}
+              disabled={areDialsDisabled}
             />
             <Dial
               label="Intake Gate"
@@ -84,7 +87,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
               step={1}
               unit={GENERATOR_PARAMS.gatePosition.unit}
               onChange={(value) => onSettingChange('intakeGatePosition', value)}
-              disabled={isDisabled}
+              disabled={areDialsDisabled}
             />
              <Dial
               label="Guide Vanes"
@@ -94,15 +97,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
               step={1}
               unit={GENERATOR_PARAMS.vanePosition.unit}
               onChange={(value) => onSettingChange('guideVanePosition', value)}
-              disabled={isDisabled}
+              disabled={areDialsDisabled}
             />
-          </div>
-        </div>
-
-        {/* Electrical Settings */}
-        <div className="flex flex-col justify-around items-center p-4 bg-gray-900/50 rounded-lg">
-          <h4 className="text-md font-semibold text-gray-400 text-center">Electrical Settings</h4>
-          <div className="flex justify-around w-full mt-4">
              <Dial
               label="Target Voltage"
               value={settings.targetVoltage}
@@ -111,10 +107,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
               step={0.1}
               unit={GENERATOR_PARAMS.voltage.unit}
               onChange={(value) => onSettingChange('targetVoltage', value)}
-              disabled={isDisabled}
+              disabled={areDialsDisabled}
             />
           </div>
-        </div>
       </div>
     </div>
   );
