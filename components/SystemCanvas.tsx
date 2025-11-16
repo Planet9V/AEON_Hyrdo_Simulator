@@ -2,7 +2,7 @@ import React from 'react';
 import { GeneratorMetrics, GeneratorSettings, GeneratorStatus } from '../types';
 import { STATUS_STYLES, GENERATOR_PARAMS } from '../constants';
 import { MetricsDisplay } from './MetricsDisplay';
-import { ChevronUpIcon, DropletIcon, WifiOffIcon } from './icons';
+import { ChevronUpIcon, DropletIcon, WifiOffIcon, WindIcon } from './icons';
 
 interface SystemCanvasProps {
   status: GeneratorStatus;
@@ -31,6 +31,9 @@ export const SystemCanvas: React.FC<SystemCanvasProps> = ({ status, metrics, set
       strokeWidth: `${2 + (settings.intakeGatePosition / 100) * 6}px`,
       transition: 'stroke-width 0.5s ease-in-out',
     };
+    
+    const flowRate = (settings.intakeGatePosition / 100) * (settings.guideVanePosition / 100) * (settings.waterHead / 10) * 50; // Estimated flow rate m³/s
+
 
   return (
     <div className="w-full h-full relative overflow-hidden">
@@ -127,6 +130,16 @@ export const SystemCanvas: React.FC<SystemCanvasProps> = ({ status, metrics, set
             strokeWidth="2"
         />
         <circle cx="350" cy="150" r="8" fill={statusBgColor} />
+        {/* Field Winding Status Indicator */}
+        <circle 
+            cx="350" 
+            cy="150" 
+            r="4" 
+            fill={(isRunning || isStarting) && metrics.excitationCurrent > 0 ? '#FBBF24' : '#1F2937'} 
+            stroke={(isRunning || isStarting) && metrics.excitationCurrent > 0 ? '#FDE047' : '#4B5563'}
+            strokeWidth="1"
+        />
+        <text x="350" y="110" textAnchor="middle" fill="#9CA3AF" fontSize="9">Field Winding</text>
         <text x="350" y="200" textAnchor="middle" fill="#9CA3AF" fontSize="12" fontWeight="bold">Generator</text>
         
         {/* Transmission */}
@@ -154,6 +167,13 @@ export const SystemCanvas: React.FC<SystemCanvasProps> = ({ status, metrics, set
             <text x="210" y="375" fill="#9CA3AF" fontSize="10">Guide Vanes</text>
             <text x="210" y="388" fill="#E5E7EB" fontSize="12" fontWeight="bold">{settings.guideVanePosition.toFixed(0)}%</text>
             <ChevronUpIcon x="310" y="368" width="20" height="20" className="text-gray-400" style={{ transform: `rotate(${(settings.guideVanePosition / 100) * 180}deg)`, transformOrigin: 'center'}}/>
+        </g>
+        <g>
+            <rect x="345" y="360" width="160" height="35" rx="5" fill="#1F2937" stroke="#374151" />
+            <WindIcon x="350" y="365" width="25" height="25" className="text-blue-400" />
+            <text x="380" y="375" fill="#9CA3AF" fontSize="10">Flow Rate</text>
+            <text x="380" y="388" fill="#E5E7EB" fontSize="12" fontWeight="bold">{flowRate.toFixed(1)} m³/s</text>
+            <ChevronUpIcon x="480" y="368" width="20" height="20" className="text-gray-400" style={{ transform: `rotate(${(flowRate / 500) * 180}deg)`, transformOrigin: 'center'}}/>
         </g>
       </svg>
       <MetricsDisplay metrics={metrics} status={status} />
