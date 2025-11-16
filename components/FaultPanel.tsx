@@ -5,6 +5,7 @@ import { AlertTriangleIcon, RefreshCwIcon, WifiOffIcon, WindIcon } from './icons
 
 interface FaultPanelProps {
   status: GeneratorStatus;
+  isCommsLossActive: boolean;
   faults: {
     isGridFaultActive: boolean;
     isTrashRackClogged: boolean;
@@ -17,10 +18,9 @@ interface FaultPanelProps {
   };
 }
 
-export const FaultPanel: React.FC<FaultPanelProps> = ({ status, faults, actions }) => {
+export const FaultPanel: React.FC<FaultPanelProps> = ({ status, faults, actions, isCommsLossActive }) => {
   const isRunning = status === GeneratorStatus.RUNNING || status === GeneratorStatus.ALERT;
-  const isCommsLoss = status === GeneratorStatus.COMMS_LOSS;
-  const isAnyFaultActive = faults.isGridFaultActive || faults.isTrashRackClogged || isCommsLoss;
+  const isAnyFaultActive = faults.isGridFaultActive || faults.isTrashRackClogged || isCommsLossActive;
 
   return (
     <div className="flex flex-col h-full space-y-4">
@@ -50,16 +50,16 @@ export const FaultPanel: React.FC<FaultPanelProps> = ({ status, faults, actions 
         </button>
         <button
           onClick={actions.toggleCommsLoss}
-          disabled={!isRunning && !isCommsLoss}
+          disabled={!isRunning && !isCommsLossActive}
           className={`flex flex-col items-center justify-center space-y-1 h-24 px-4 py-2 text-white font-semibold rounded-md transition-colors ${
-            isCommsLoss
+            isCommsLossActive
               ? 'bg-indigo-700 hover:bg-indigo-600'
               : 'bg-indigo-600 hover:bg-indigo-500'
           } disabled:bg-gray-600 disabled:cursor-not-allowed`}
         >
           <WifiOffIcon className="w-8 h-8" />
           <span className="text-center text-sm">
-            {isCommsLoss ? 'Restore SCADA' : 'Cut SCADA Comms'}
+            {isCommsLossActive ? 'Restore SCADA' : 'Cut SCADA Comms'}
           </span>
         </button>
          <button

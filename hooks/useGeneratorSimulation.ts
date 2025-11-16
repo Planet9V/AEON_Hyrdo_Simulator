@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GeneratorStatus, GeneratorMetrics, GeneratorSettings } from '../types';
 import {
@@ -30,25 +29,34 @@ export const useGeneratorSimulation = () => {
   const voltageRegulatorRef = useRef(new VoltageRegulation());
   const gridFaultDecayRef = useRef<number | null>(null);
 
+  const calculateSynchronousSpeed = useCallback((frequency: number): number => {
+    return (120 * frequency) / GENERATOR_PARAMS.poles;
+  }, []);
+
   const addLog = useCallback((message: string) => {
     const timestamp = new Date().toLocaleTimeString();
     setLogs(prevLogs => [`[${timestamp}] ${message}`, ...prevLogs.slice(0, 199)]);
   }, []);
 
-  const clearTimeouts = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    if (sequenceTimeoutRef.current) clearTimeout(sequenceTimeoutRef.current);
-    if (gridFaultDecayRef.current) clearTimeout(gridFaultDecayRef.current);
-    intervalRef.current = null;
-    sequenceTimeoutRef.current = null;
-    gridFaultDecayRef.current = null;
-  }, []);
-
-  const calculateSynchronousSpeed = useCallback((frequency: number) => {
-    return (120 * frequency) / GENERATOR_PARAMS.poles;
+  const clearAllTimers = useCallback(() => {
+    if (sequenceTimeoutRef.current) {
+        clearTimeout(sequenceTimeoutRef.current);
+        sequenceTimeoutRef.current = null;
+    }
+    if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+    }
+    if (gridFaultDecayRef.current) {
+        clearTimeout(gridFaultDecayRef.current);
+        gridFaultDecayRef.current = null;
+    }
   }, []);
 
   const runSequence = useCallback((sequence: string[], finalStatus: GeneratorStatus, onComplete?: () => void) => {
+    if (sequenceTimeoutRef.current) {
+        clearTimeout(sequenceTimeoutRef.current);
+    }
     let step = 0;
     const runNextStep = () => {
       if (step < sequence.length) {
@@ -56,6 +64,7 @@ export const useGeneratorSimulation = () => {
         step++;
         sequenceTimeoutRef.current = window.setTimeout(runNextStep, 1500);
       } else {
+        sequenceTimeoutRef.current = null;
         setStatus(finalStatus);
         if (onComplete) {
             onComplete();
@@ -66,106 +75,137 @@ export const useGeneratorSimulation = () => {
   }, [addLog]);
 
   const emergencyStop = useCallback((reason?: string) => {
-    if (status !== GeneratorStatus.STOPPED && status !== GeneratorStatus.EMERGENCY_STOP) {
-      clearTimeouts();
-      if(reason) addLog(`[SYSTEM] ${reason}`);
-      setStatus(GeneratorStatus.EMERGENCY_STOP);
-      runSequence(EMERGENCY_STOP_SEQUENCE, GeneratorStatus.STOPPED, () => {
-        setMetrics(INITIAL_METRICS);
-        voltageRegulatorRef.current.reset();
-      });
-    }
-  }, [status, clearTimeouts, runSequence, addLog]);
+    setStatus(currentStatus => {
+        if (currentStatus !== GeneratorStatus.STOPPED && currentStatus !== GeneratorStatus.EMERGENCY_STOP) {
+            if (reason) addLog(`[SYSTEM] ${reason}`);
+            clearAllTimers();
+            runSequence(EMERGENCY_STOP_SEQUENCE, GeneratorStatus.STOPPED, () => {
+                setMetrics(INITIAL_METRICS);
+                voltageRegulatorRef.current.reset();
+            });
+            return GeneratorStatus.EMERGENCY_STOP;
+        }
+        return currentStatus;
+    });
+  }, [addLog, clearAllTimers, runSequence]);
 
   const resetFaults = useCallback(() => {
-    if (status === GeneratorStatus.COMMS_LOSS) {
-      setStatus(GeneratorStatus.RUNNING);
-    }
+    const wasCommsLoss = isCommsLossActive;
+    
     setGridFaultActive(false);
     setTrashRackClogged(false);
     setCommsLossActive(false);
+
     if (gridFaultDecayRef.current) clearTimeout(gridFaultDecayRef.current);
+    gridFaultDecayRef.current = null;
+
     setSettings(prev => ({...prev, targetFrequency: INITIAL_SETTINGS.targetFrequency}));
+
+    setStatus(currentStatus => {
+        if(wasCommsLoss && currentStatus === GeneratorStatus.COMMS_LOSS) {
+            return GeneratorStatus.RUNNING;
+        }
+        return currentStatus;
+    });
+
     addLog('[SYSTEM] All fault conditions cleared.');
-  }, [addLog, status]);
+  }, [addLog, isCommsLossActive]);
 
   const start = useCallback(() => {
-    if (status === GeneratorStatus.STOPPED) {
-      clearTimeouts();
-      resetFaults();
-      setMetrics(INITIAL_METRICS);
-      voltageRegulatorRef.current.reset();
-      setSettings(prev => ({...prev, intakeGatePosition: 100, guideVanePosition: 25}));
-      setStatus(GeneratorStatus.STARTING);
-      runSequence(START_SEQUENCE, GeneratorStatus.RUNNING);
-    }
-  }, [status, clearTimeouts, runSequence, resetFaults]);
+    setStatus(currentStatus => {
+        if (currentStatus === GeneratorStatus.STOPPED) {
+            resetFaults(); // Reset faults at the beginning of the start sequence
+            setMetrics(INITIAL_METRICS);
+            voltageRegulatorRef.current.reset();
+            setSettings(prev => ({...prev, intakeGatePosition: 100, guideVanePosition: 25}));
+            runSequence(START_SEQUENCE, GeneratorStatus.RUNNING);
+            return GeneratorStatus.STARTING;
+        }
+        return currentStatus;
+    });
+  }, [runSequence, resetFaults]);
 
   const stop = useCallback(() => {
-    if (status === GeneratorStatus.RUNNING || status === GeneratorStatus.ALERT) {
-      clearTimeouts();
-      setSettings(prev => ({...prev, guideVanePosition: 0}));
-      setStatus(GeneratorStatus.STOPPING);
-      runSequence(STOP_SEQUENCE, GeneratorStatus.STOPPED, () => {
-        setMetrics(INITIAL_METRICS);
-        voltageRegulatorRef.current.reset();
-      });
-    }
-  }, [status, clearTimeouts, runSequence]);
+    setStatus(currentStatus => {
+        if (currentStatus === GeneratorStatus.RUNNING || currentStatus === GeneratorStatus.ALERT || currentStatus === GeneratorStatus.COMMS_LOSS) {
+            setSettings(prev => ({...prev, guideVanePosition: 0}));
+            runSequence(STOP_SEQUENCE, GeneratorStatus.STOPPED, () => {
+                setMetrics(INITIAL_METRICS);
+                voltageRegulatorRef.current.reset();
+            });
+            return GeneratorStatus.STOPPING;
+        }
+        return currentStatus;
+    });
+  }, [runSequence]);
 
   const updateSetting = useCallback((key: keyof GeneratorSettings, value: number) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   }, []);
   
   const acknowledgeAlert = useCallback(() => {
-    if (status === GeneratorStatus.ALERT) {
-      addLog('[SYSTEM] Alert acknowledged by operator.');
-      setStatus(GeneratorStatus.RUNNING);
-    }
-  }, [status, addLog]);
+    setStatus(currentStatus => {
+        if (currentStatus === GeneratorStatus.ALERT) {
+            addLog('[SYSTEM] Alert acknowledged by operator.');
+            return GeneratorStatus.RUNNING;
+        }
+        return currentStatus;
+    });
+  }, [addLog]);
 
   const triggerGridFault = useCallback(() => {
-    if (status !== GeneratorStatus.RUNNING && status !== GeneratorStatus.ALERT) return;
-    addLog('[SCENARIO] Simulating major grid fault (generation loss).');
-    setGridFaultActive(true);
-    
-    // Simulate frequency decay
-    gridFaultDecayRef.current = window.setTimeout(() => {
-        setGridFaultActive(false);
-        addLog('[SYSTEM] Grid stabilizing after fault.');
-    }, 10000); // Fault lasts for 10 seconds
-  }, [status, addLog]);
+    setStatus(s => {
+      if (s !== GeneratorStatus.RUNNING && s !== GeneratorStatus.ALERT) return s;
+      addLog('[SCENARIO] Simulating major grid fault (generation loss).');
+      setGridFaultActive(true);
+      
+      if (gridFaultDecayRef.current) clearTimeout(gridFaultDecayRef.current);
+      gridFaultDecayRef.current = window.setTimeout(() => {
+          setGridFaultActive(false);
+          addLog('[SYSTEM] Grid stabilizing after fault.');
+      }, 10000);
+      return s;
+    });
+  }, [addLog]);
 
   const toggleTrashRackClogging = useCallback(() => {
-    if (status !== GeneratorStatus.RUNNING && status !== GeneratorStatus.ALERT) return;
-    const newClogState = !isTrashRackClogged;
-    setTrashRackClogged(newClogState);
-    if(newClogState) {
-        addLog('[SCENARIO] Simulating trash rack clogging. Reduced water flow.');
-    } else {
-        addLog('[SYSTEM] Trash rack cleaned. Water flow restored.');
-    }
-  }, [status, addLog, isTrashRackClogged]);
+    setStatus(s => {
+      if (s !== GeneratorStatus.RUNNING && s !== GeneratorStatus.ALERT) return s;
+      setTrashRackClogged(currentClogState => {
+        const newClogState = !currentClogState;
+        if(newClogState) {
+            addLog('[SCENARIO] Simulating trash rack clogging. Reduced water flow.');
+        } else {
+            addLog('[SYSTEM] Trash rack cleaned. Water flow restored.');
+        }
+        return newClogState;
+      });
+      return s;
+    });
+  }, [addLog]);
 
   const toggleCommsLoss = useCallback(() => {
-    if (status !== GeneratorStatus.RUNNING && status !== GeneratorStatus.ALERT && !isCommsLossActive) {
-      setCommsLossActive(true);
-      setStatus(GeneratorStatus.COMMS_LOSS);
-      addLog('[SCENARIO] Simulating SCADA communication loss. HMI data is frozen!');
-    } else if (isCommsLossActive) {
-      setCommsLossActive(false);
-      setStatus(GeneratorStatus.RUNNING);
-      addLog('[SYSTEM] SCADA communication restored.');
-    }
-  }, [status, addLog, isCommsLossActive]);
+    setStatus(currentStatus => {
+        if (currentStatus === GeneratorStatus.RUNNING || currentStatus === GeneratorStatus.ALERT) {
+            setCommsLossActive(true);
+            addLog('[SCENARIO] Simulating SCADA communication loss. HMI data is frozen!');
+            return GeneratorStatus.COMMS_LOSS;
+        } else if (currentStatus === GeneratorStatus.COMMS_LOSS) {
+            // When toggling off, call resetFaults which will handle setting status back to RUNNING
+             setCommsLossActive(false);
+             addLog('[SYSTEM] SCADA communications restored.');
+             return GeneratorStatus.RUNNING;
+        }
+        return currentStatus;
+    });
+  }, [addLog]);
 
   useEffect(() => {
-    // This effect manages the core simulation "tick" when the generator is running.
-    // A previous bug was caused by complex logic in this effect that incorrectly
-    // cleared timers for the startup/shutdown sequences.
-    // This revised effect is simplified to only manage the tick interval,
-    // preventing interference with other asynchronous operations.
-
+    // This is the core simulation loop effect.
+    // It is critical that its cleanup function ONLY cleans up resources created within THIS effect.
+    // Specifically, it should only clear the interval timer for the simulation tick.
+    // It MUST NOT clear the sequence timeouts, as that would interrupt startup/shutdown sequences,
+    // causing the simulation to freeze in a transient state.
     if (status === GeneratorStatus.RUNNING || status === GeneratorStatus.ALERT || status === GeneratorStatus.COMMS_LOSS) {
       const tick = () => {
         setMetrics(prev => {
@@ -202,7 +242,9 @@ export const useGeneratorSimulation = () => {
           const angularVelocity = (2 * Math.PI * speed) / 60;
           const torque = angularVelocity > 0 ? (power * 1e6) / angularVelocity : 0;
           
-          const current = (voltage > 0) ? (power * 1e6) / (Math.sqrt(3) * voltage * 1000 * GENERATOR_PARAMS.powerFactor * GENERATOR_PARAMS.efficiency) : 0;
+          const powerFactor = Math.max(0.85, Math.min(0.99, GENERATOR_PARAMS.powerFactor + (Math.random() - 0.5) * 0.05));
+
+          const current = (voltage > 0) ? (power * 1e6) / (Math.sqrt(3) * voltage * 1000 * powerFactor * GENERATOR_PARAMS.efficiency) : 0;
 
           const tempIncrease = (power / GENERATOR_PARAMS.power.max) * 0.1;
           const temperature = Math.min(prev.temperature + tempIncrease - 0.05, OPERATIONAL_LIMITS.temperature + 10);
@@ -221,36 +263,40 @@ export const useGeneratorSimulation = () => {
               efficiency: parseFloat((power / GENERATOR_PARAMS.power.max * 98.8).toFixed(1)),
               excitationCurrent: parseFloat(excitationCurrent.toFixed(1)),
               rocf: parseFloat(rocf.toFixed(2)),
+              powerFactor: parseFloat(powerFactor.toFixed(2)),
           };
 
           if (temperature > OPERATIONAL_LIMITS.temperature || vibration > OPERATIONAL_LIMITS.vibration) {
-            if(status !== GeneratorStatus.ALERT) {
-              setStatus(GeneratorStatus.ALERT);
-              addLog(`[ALERT] Operational limits exceeded! Temp: ${temperature.toFixed(1)}°C, Vib: ${vibration.toFixed(2)}mm/s`);
-            }
+             setStatus(currentStatus => {
+                if (currentStatus !== GeneratorStatus.ALERT) {
+                    addLog(`[ALERT] Operational limits exceeded! Temp: ${temperature.toFixed(1)}°C, Vib: ${vibration.toFixed(2)}mm/s`);
+                    return GeneratorStatus.ALERT;
+                }
+                return currentStatus;
+            });
           }
           
           if (rocf < OPERATIONAL_LIMITS.rocf) {
-              setStatus(GeneratorStatus.GRID_UNSTABLE);
               emergencyStop(`GRID INSTABILITY - RoCoF at ${rocf.toFixed(2)} Hz/s exceeded critical limit of ${OPERATIONAL_LIMITS.rocf} Hz/s.`);
+              setStatus(GeneratorStatus.GRID_UNSTABLE);
           }
           
           return newMetrics;
         });
       };
-
+      
       intervalRef.current = window.setInterval(tick, SIMULATION_TICK_RATE);
-    }
-
-    // Cleanup function: This is critical. It ONLY clears the interval created
-    // by this effect instance. It does not touch other timers.
+    } 
+    
+    // CRITICAL FIX: The cleanup function for this effect MUST only clear the interval created by this effect.
+    // If it clears all timeouts (e.g., by calling clearAllTimers), it will interrupt the startup/shutdown sequences.
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
     };
-  }, [status, settings, addLog, calculateSynchronousSpeed, clearTimeouts, isGridFaultActive, isTrashRackClogged, emergencyStop]);
+  }, [status, settings, isGridFaultActive, isTrashRackClogged, addLog, calculateSynchronousSpeed, emergencyStop]);
 
   useEffect(() => {
     if (!isCommsLossActive) {
@@ -258,6 +304,12 @@ export const useGeneratorSimulation = () => {
     }
   }, [metrics, isCommsLossActive]);
 
+  const stableActions = {
+      triggerGridFault,
+      toggleTrashRackClogging,
+      toggleCommsLoss,
+      resetFaults
+  };
 
   return { 
     status, 
@@ -274,11 +326,6 @@ export const useGeneratorSimulation = () => {
       isGridFaultActive,
       isTrashRackClogged,
     },
-    actions: {
-      triggerGridFault,
-      toggleTrashRackClogging,
-      toggleCommsLoss,
-      resetFaults
-    }
+    actions: stableActions
   };
 };

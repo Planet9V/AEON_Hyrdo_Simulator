@@ -37,6 +37,7 @@ export const INITIAL_METRICS: GeneratorMetrics = {
   efficiency: 0,
   excitationCurrent: 0,
   rocf: 0,
+  powerFactor: 0.9,
 };
 
 export const INITIAL_SETTINGS: GeneratorSettings = {

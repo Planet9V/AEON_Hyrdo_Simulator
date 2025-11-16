@@ -26,7 +26,7 @@ export const LogPanel: React.FC<LogPanelProps> = ({ logs }) => {
     <div className="h-full flex flex-col p-2">
       <div ref={logContainerRef} className="flex-grow overflow-y-auto pr-2 h-full">
         {logs.map((log, index) => (
-          <p key={index} className="text-xs whitespace-pre-wrap leading-relaxed ${getLogColor(log)}">
+          <p key={index} className={`text-xs whitespace-pre-wrap leading-relaxed ${getLogColor(log)}`}>
             {log}
           </p>
         ))}

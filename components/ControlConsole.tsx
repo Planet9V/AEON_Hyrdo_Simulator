@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ControlPanel } from './ControlPanel';
 import { FaultPanel } from './FaultPanel';
@@ -46,6 +47,7 @@ export const ControlConsole: React.FC<ReturnType<typeof useGeneratorSimulation>>
             status={simulation.status}
             faults={simulation.faults}
             actions={simulation.actions}
+            isCommsLossActive={simulation.isCommsLossActive}
           />
         )}
         {activeTab === 'logs' && <LogPanel logs={simulation.logs} />}

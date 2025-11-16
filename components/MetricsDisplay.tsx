@@ -1,7 +1,7 @@
 import React from 'react';
 import { GeneratorMetrics, GeneratorStatus } from '../types';
 import { STATUS_STYLES, GENERATOR_PARAMS, OPERATIONAL_LIMITS } from '../constants';
-import { ZapIcon, ThermometerIcon, ZapOffIcon, WavesIcon, GaugeIcon, ActivityIcon, ExcitationIcon, RpmIcon } from './icons';
+import { ZapIcon, ThermometerIcon, ZapOffIcon, WavesIcon, GaugeIcon, ActivityIcon, ExcitationIcon, RpmIcon, PhaseIcon } from './icons';
 
 interface MetricDisplayProps {
   metrics: GeneratorMetrics;
@@ -102,7 +102,7 @@ export const MetricsDisplay: React.FC<MetricDisplayProps> = ({ metrics, status }
         label="Power Output"
         value={metrics.power.toFixed(1)}
         unit={GENERATOR_PARAMS.power.unit}
-        className="top-[30%] right-[5%]"
+        className="top-[25%] right-[5%]"
         valueClassName={isRunning ? 'text-green-400' : 'text-gray-400'}
       />
       <MetricCard 
@@ -110,16 +110,24 @@ export const MetricsDisplay: React.FC<MetricDisplayProps> = ({ metrics, status }
         label="Voltage"
         value={metrics.voltage.toFixed(2)}
         unit={GENERATOR_PARAMS.voltage.unit}
-        className="top-[45%] right-[5%]"
+        className="top-[40%] right-[5%]"
         valueClassName={isRunning ? STATUS_STYLES.RUNNING.text : 'text-gray-400'}
 
+      />
+       <MetricCard 
+        icon={<PhaseIcon className="w-4 h-4" />}
+        label="Power Factor"
+        value={metrics.powerFactor.toFixed(2)}
+        unit="PF"
+        className="top-[55%] right-[5%]"
+        valueClassName={isRunning ? STATUS_STYLES.RUNNING.text : 'text-gray-400'}
       />
       <MetricCard 
         icon={<WavesIcon className="w-4 h-4" />}
         label="Frequency"
         value={metrics.frequency.toFixed(2)}
         unit={GENERATOR_PARAMS.frequency.unit}
-        className="top-[60%] right-[5%]"
+        className="top-[70%] right-[5%]"
         valueClassName={isRunning ? STATUS_STYLES.RUNNING.text : 'text-gray-400'}
       />
       <MetricCard 
@@ -127,7 +135,7 @@ export const MetricsDisplay: React.FC<MetricDisplayProps> = ({ metrics, status }
         label="RoCoF"
         value={metrics.rocf.toFixed(2)}
         unit="Hz/s"
-        className="top-[75%] right-[5%]"
+        className="top-[85%] right-[5%]"
         valueClassName={getRocfColor(metrics.rocf)}
       />
     </>
