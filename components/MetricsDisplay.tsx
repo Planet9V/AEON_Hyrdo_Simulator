@@ -70,7 +70,7 @@ export const MetricsDisplay: React.FC<MetricDisplayProps> = ({ metrics, status }
         valueClassName={isRunning ? STATUS_STYLES.RUNNING.text : 'text-gray-400'}
       />
        <MetricCard 
-        icon={<ActivityIcon className="w-4 h-4" />}
+        icon={<GaugeIcon className="w-4 h-4" />}
         label="Vibration"
         value={metrics.vibration.toFixed(2)}
         unit="mm/s"
